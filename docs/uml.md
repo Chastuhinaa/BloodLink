@@ -7,6 +7,7 @@
 ```mermaid
 flowchart LR
     Donor(["👤 Донор"])
+    Seeker(["👤 Людина, якій<br/>потрібна кров"])
     Guest(["👤 Гість"])
     Center(["🏥 Центр крові<br/>(весна)"])
 
@@ -18,11 +19,16 @@ flowchart LR
         UC5(("Знайти найближчий<br/>центр крові"))
         UC6(("Додати донацію<br/>в історію"))
         UC7(("Переглянути / видалити<br/>запис історії"))
+        UC10(("Створити запит<br/>на кров"))
+        UC11(("Побачити донорів,<br/>що відгукнулися"))
+        UC12(("Закрити запит:<br/>знайдено / скасовано"))
+        UC13(("Переглянути запити<br/>поруч"))
+        UC14(("Відгукнутися<br/>«Я допоможу»"))
     end
 
     subgraph Spring["Весна (поза модулем 2)"]
-        UC8(("Отримати SOS-<br/>сповіщення"))
-        UC9(("Створити SOS-запит"))
+        UC8(("Push-сповіщення<br/>про новий запит"))
+        UC9(("Запит від імені<br/>центру крові"))
     end
 
     Guest --> UC1
@@ -33,12 +39,18 @@ flowchart LR
     Donor --> UC5
     Donor --> UC6
     Donor --> UC7
+    Donor --> UC13
+    Donor --> UC14
+    Seeker --> UC10
+    Seeker --> UC11
+    Seeker --> UC12
     Donor -.-> UC8
     Center -.-> UC9
     UC4 -. "«include»" .-> UC6
+    UC14 -. "«include»" .-> UC4
 ```
 
-Гість може зареєструватися, увійти й переглянути центри (ендпоінт `/api/centers` публічний). Решта дій потребує входу. Калькулятор (UC4) рахує дату за історією донацій (UC6).
+Гість може зареєструватися, увійти й переглянути центри (ендпоінт `/api/centers` публічний). Решта дій потребує входу. Калькулятор (UC4) рахує дату за історією донацій (UC6). Донор і людина, якій потрібна кров, — це ролі одного облікового запису: родич пацієнта може сам бути донором. Відгукнутися (UC14) можна лише за сумісної групи й після мінімального інтервалу, тому UC14 включає перевірку UC4.
 
 ## 2. Діаграма класів
 
@@ -109,10 +121,39 @@ classDiagram
     class ICenterService { <<interface>> +GetAsync() }
     class IDonationService { <<interface>> +ListAsync() +AddAsync() +DeleteAsync() }
     class ITokenService { <<interface>> +CreateToken(donor) }
+    class IBloodRequestService { <<interface>> +ListOpenAsync() +ListMineAsync() +CreateAsync() +RespondAsync() +CancelResponseAsync() +UpdateStatusAsync() }
+    class BloodRequest {
+        +int Id
+        +int AuthorId
+        +BloodGroup BloodGroup
+        +RhFactor RhFactor
+        +DonationType Type
+        +int UnitsNeeded
+        +int BloodCenterId
+        +RequestUrgency Urgency
+        +RequestStatus Status
+        +string ContactPhone
+        +string? PatientName
+        +string? Hospital
+        +DateOnly? NeededBy
+    }
+    class RequestResponse {
+        +int Id
+        +int RequestId
+        +int DonorId
+        +DateTime CreatedAt
+    }
+    class BloodCompatibility {
+        <<static>>
+        +CanDonate(donorGroup, donorRh, recipientGroup, recipientRh, type) bool
+        +CompatibleDonors(recipientGroup, recipientRh, type) list
+    }
     class BloodLinkDbContext {
         +DbSet~Donor~ Donors
         +DbSet~Donation~ Donations
         +DbSet~BloodCenter~ BloodCenters
+        +DbSet~BloodRequest~ BloodRequests
+        +DbSet~RequestResponse~ RequestResponses
     }
 
     Donor "1" --> "0..*" Donation : має
@@ -130,9 +171,17 @@ classDiagram
     ICenterService ..> GeoDistance
     ICenterService ..> BloodLinkDbContext
     IDonationService ..> BloodLinkDbContext
+    Donor "1" --> "0..*" BloodRequest : створює
+    BloodRequest "0..*" --> "1" BloodCenter : здавати тут
+    BloodRequest "1" --> "0..*" RequestResponse : відгуки
+    Donor "1" --> "0..*" RequestResponse : відгукується
+    IBloodRequestService ..> BloodCompatibility
+    IBloodRequestService ..> DonationIntervalCalculator
+    IBloodRequestService ..> GeoDistance
+    IBloodRequestService ..> BloodLinkDbContext
 ```
 
-Переліки: `BloodGroup {O, A, B, AB}`, `RhFactor {Positive, Negative}`, `Sex {Male, Female}`, `DonationType {WholeBlood, Plasma, Platelets}`. Кожен інтерфейс сервісу має одну реалізацію з такою ж назвою без `I` (`AuthService`, `ProfileService` тощо); контролери залежать лише від інтерфейсів.
+Переліки: `BloodGroup {O, A, B, AB}`, `RhFactor {Positive, Negative}`, `Sex {Male, Female}`, `DonationType {WholeBlood, Plasma, Platelets}`, `RequestUrgency {Normal, Urgent, Critical}`, `RequestStatus {Open, Fulfilled, Cancelled}`. Кожен інтерфейс сервісу має одну реалізацію з такою ж назвою без `I` (`AuthService`, `ProfileService` тощо); контролери залежать лише від інтерфейсів.
 
 ## 3. Діаграма послідовності: «коли мені можна здавати?»
 
@@ -192,4 +241,45 @@ sequenceDiagram
         A-->>UI: 201 Created { token, expiresAt, donorId }
         UI->>UI: зберегти токен, перейти на «Профіль»
     end
+```
+
+## 5. Діаграма послідовності: запит на кров і відгук донора
+
+```mermaid
+sequenceDiagram
+    actor R as Родич пацієнта
+    actor D as Донор
+    participant API as BloodRequestsController
+    participant S as BloodRequestService
+    participant BC as BloodCompatibility
+    participant Calc as DonationIntervalCalculator
+    participant DB as BloodLinkDbContext
+
+    R->>API: POST /api/requests { A Rh−, 3 донори, центр 1, Critical, телефон }
+    API->>S: CreateAsync(authorId, request)
+    S->>DB: INSERT blood_requests
+    API-->>R: 201 Created
+
+    D->>API: GET /api/requests?onlyCompatible=true
+    API->>S: ListOpenAsync(donorId, ...)
+    S->>DB: відкриті запити + центр + профіль донора
+    loop для кожного запиту
+        S->>BC: CanDonate(група донора, група пацієнта, тип)
+        S->>Calc: Calculate(історія донора)
+    end
+    API-->>D: 200 [{ canHelp: true, contactPhone: null, distanceKm: 1.4 }]
+
+    D->>API: POST /api/requests/{id}/responses
+    API->>S: RespondAsync(donorId, id)
+    alt група несумісна або ще не минув інтервал
+        S-->>D: 400 + причина
+    else можна допомогти
+        S->>DB: INSERT request_responses
+        API-->>D: 200 { iResponded: true, contactPhone: "+380…" }
+    end
+
+    R->>API: GET /api/requests/mine
+    API-->>R: 200 [{ responders: [{ ім'я, група, email }] }]
+    R->>API: PATCH /api/requests/{id}/status { Fulfilled }
+    API-->>R: 200, запит зникає зі списку відкритих
 ```

@@ -11,14 +11,14 @@ flowchart LR
     end
 
     subgraph Api["BloodLink.Api (ASP.NET Core 9)"]
-        C["Контролери<br/>Auth · Profile · Eligibility<br/>Centers · Donations"]
-        S["Сервіси<br/>AuthService · ProfileService<br/>EligibilityService · CenterService<br/>DonationService · JwtTokenService"]
+        C["Контролери<br/>Auth · Profile · Eligibility<br/>Centers · Donations · BloodRequests"]
+        S["Сервіси<br/>AuthService · ProfileService<br/>EligibilityService · CenterService<br/>DonationService · BloodRequestService<br/>JwtTokenService"]
         EF["EF Core<br/>BloodLinkDbContext"]
         SW["Swagger / OpenAPI"]
     end
 
     subgraph Domain["BloodLink.Domain"]
-        D["Сутності: Donor, Donation, BloodCenter<br/>DonationIntervalCalculator<br/>GeoDistance · ProfileValidator"]
+        D["Сутності: Donor, Donation, BloodCenter,<br/>BloodRequest, RequestResponse<br/>DonationIntervalCalculator · BloodCompatibility<br/>GeoDistance · ProfileValidator"]
     end
 
     DB[("PostgreSQL + PostGIS<br/>(SQLite для локального запуску й тестів)")]
@@ -63,9 +63,10 @@ flowchart LR
 - Паролі — лише у вигляді хешу (PBKDF2, `Microsoft.AspNetCore.Identity.PasswordHasher`).
 - Ключ підпису JWT не зберігається в репозиторії для продакшну: `Jwt:Key` задається змінною середовища `Jwt__Key`.
 - Донор бачить і змінює тільки власні дані: id береться з токена, а не з запиту; чужий запис дає 404.
+- Телефон автора запиту на кров видно лише донорам, які натиснули «Я допоможу»; список донорів, що відгукнулися, бачить лише автор. Про пацієнта зберігаються тільки ініціали.
 - Однакова відповідь на «немає такого email» і «невірний пароль», щоб не розкривати зареєстровані адреси.
 - Медичні дані (група крові, донації) — чутливі; шифрування в стані спокою й аудит доступу заплановані на весну разом із кабінетом центру.
 
 ## Що свідомо відкладено на весну
 
-Карта замість списку, SOS-сповіщення (Firebase Cloud Messaging + PostGIS), кабінет центру крові, міграції EF Core замість `EnsureCreated`, мобільний клієнт на React Native, ML-сервіс прогнозу дефіциту на Python.
+Карта замість списку, push-сповіщення донорам про нові запити поруч (Firebase Cloud Messaging + PostGIS), кабінет центру крові, міграції EF Core замість `EnsureCreated`, мобільний клієнт на React Native, ML-сервіс прогнозу дефіциту на Python.
