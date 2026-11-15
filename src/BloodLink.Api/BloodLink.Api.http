@@ -1,0 +1,42 @@
+# Запити до BloodLink API для перевірки в Visual Studio / Rider / VS Code (REST Client).
+@host = http://localhost:5124
+
+### Реєстрація
+POST {{host}}/api/auth/register
+Content-Type: application/json
+
+{ "email": "olena@example.com", "password": "Passw0rd!", "fullName": "Олена Коваль" }
+
+### Вхід (скопіюйте token у змінну нижче)
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "olena@example.com", "password": "Passw0rd!" }
+
+###
+@token = paste-token-here
+
+### Профіль
+PUT {{host}}/api/profile
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "fullName": "Олена Коваль", "sex": "Female", "birthDate": "2003-05-10", "bloodGroup": "A", "rhFactor": "Negative", "city": "Київ", "latitude": 50.4501, "longitude": 30.5234 }
+
+### Коли можна здавати
+GET {{host}}/api/eligibility?type=WholeBlood
+Authorization: Bearer {{token}}
+
+### Центри поруч
+GET {{host}}/api/centers?lat=50.4501&lng=30.5234
+
+### Додати донацію
+POST {{host}}/api/donations
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "date": "2026-11-15", "type": "WholeBlood", "bloodCenterId": 1 }
+
+### Історія
+GET {{host}}/api/donations
+Authorization: Bearer {{token}}
