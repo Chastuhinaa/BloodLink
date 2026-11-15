@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BloodLink</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="phone">
+    <header class="topbar">
+      <span class="logo">BloodLink</span>
+      <button id="logout" class="link hidden" type="button">Вийти</button>
+    </header>
+
+    <main>
+      <section id="screen-auth" class="screen">
+        <h1>Кров приходить раніше, ніж закінчиться</h1>
+        <div class="tabs">
+          <button type="button" class="tab active" data-mode="login">Вхід</button>
+          <button type="button" class="tab" data-mode="register">Реєстрація</button>
+        </div>
+        <form id="auth-form" novalidate>
+          <label class="register-only hidden">Ім'я
+            <input name="fullName" autocomplete="name" maxlength="100">
+          </label>
+          <label>Email
+            <input name="email" type="email" autocomplete="email" required>
+          </label>
+          <label>Пароль
+            <input name="password" type="password" autocomplete="current-password" minlength="8" required>
+          </label>
+          <button type="submit" class="primary" id="auth-submit">Увійти</button>
+          <p class="error" id="auth-error" role="alert"></p>
+        </form>
+      </section>
+
+      <section id="screen-profile" class="screen hidden">
+        <div class="card eligibility" id="eligibility">
+          <p class="muted">Завантаження…</p>
+        </div>
+        <h2>Мій профіль</h2>
+        <form id="profile-form" novalidate>
+          <label>Ім'я <input name="fullName" maxlength="100" required></label>
+          <div class="row">
+            <label>Група крові
+              <select name="bloodGroup">
+                <option value="">—</option>
+                <option value="O">0 (I)</option>
+                <option value="A">A (II)</option>
+                <option value="B">B (III)</option>
+                <option value="AB">AB (IV)</option>
+              </select>
+            </label>
+            <label>Резус
+              <select name="rhFactor">
+                <option value="">—</option>
+                <option value="Positive">Rh+</option>
+                <option value="Negative">Rh−</option>
+              </select>
+            </label>
+          </div>
+          <div class="row">
+            <label>Стать
+              <select name="sex">
+                <option value="">—</option>
+                <option value="Female">Жіноча</option>
+                <option value="Male">Чоловіча</option>
+              </select>
+            </label>
+            <label>Дата народження <input name="birthDate" type="date"></label>
+          </div>
+          <label>Місто <input name="city" maxlength="100"></label>
+          <div class="row">
+            <label>Широта <input name="latitude" type="number" step="any"></label>
+            <label>Довгота <input name="longitude" type="number" step="any"></label>
+          </div>
+          <button type="button" class="link" id="use-location">Взяти моє місцезнаходження</button>
+          <button type="submit" class="primary">Зберегти</button>
+          <p class="error" id="profile-error" role="alert"></p>
+          <p class="ok" id="profile-ok" role="status"></p>
+        </form>
+      </section>
+
+      <section id="screen-centers" class="screen hidden">
+        <h2>Центри крові поруч</h2>
+        <p class="muted" id="centers-hint"></p>
+        <ul class="list" id="centers-list"></ul>
+      </section>
+
+      <section id="screen-history" class="screen hidden">
+        <h2>Історія донацій</h2>
+        <form id="donation-form" class="card" novalidate>
+          <div class="row">
+            <label>Дата <input name="date" type="date" required></label>
+            <label>Тип
+              <select name="type">
+                <option value="WholeBlood">Цільна кров</option>
+                <option value="Plasma">Плазма</option>
+                <option value="Platelets">Тромбоцити</option>
+              </select>
+            </label>
+          </div>
+          <label>Центр <select name="bloodCenterId" id="donation-center"><option value="">—</option></select></label>
+          <label>Нотатка <input name="notes" maxlength="500"></label>
+          <button type="submit" class="primary">Додати донацію</button>
+          <p class="error" id="donation-error" role="alert"></p>
+        </form>
+        <ul class="list" id="history-list"></ul>
+      </section>
+    </main>
+
+    <nav class="tabbar hidden" id="tabbar">
+      <a href="#profile" data-screen="profile">Профіль</a>
+      <a href="#centers" data-screen="centers">Центри</a>
+      <a href="#history" data-screen="history">Історія</a>
+    </nav>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
