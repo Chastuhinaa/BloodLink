@@ -6,53 +6,52 @@
 
 ```mermaid
 flowchart LR
-    Donor(["👤 Донор"])
-    Seeker(["👤 Людина, якій<br/>потрібна кров"])
     Guest(["👤 Гість"])
-    Center(["🏥 Центр крові<br/>(весна)"])
+    Donor(["👤 Донор"])
 
-    subgraph BL["BloodLink — модуль 2"]
-        UC1(("Зареєструватися"))
-        UC2(("Увійти"))
-        UC3(("Заповнити профіль:<br/>група, резус, стать, вік, місце"))
-        UC4(("Дізнатися, коли<br/>можна здавати"))
-        UC5(("Знайти найближчий<br/>центр крові"))
-        UC6(("Додати донацію<br/>в історію"))
-        UC7(("Переглянути / видалити<br/>запис історії"))
-        UC10(("Створити запит<br/>на кров"))
-        UC11(("Побачити донорів,<br/>що відгукнулися"))
-        UC12(("Закрити запит:<br/>знайдено / скасовано"))
-        UC13(("Переглянути запити<br/>поруч"))
-        UC14(("Відгукнутися<br/>«Я допоможу»"))
+    subgraph BL["BloodLink"]
+        direction TB
+        UC1(["Зареєструватися / увійти"])
+        UC5(["Знайти найближчий центр крові"])
+        UC3(["Заповнити профіль: група, резус, стать, вік, місце"])
+        UC4(["Дізнатися, коли можна здавати"])
+        UC6(["Вести історію донацій"])
+        UC13(["Переглянути запити на кров поруч"])
+        UC14(["Відгукнутися «Я допоможу»"])
+        UC10(["Створити запит на кров"])
+        UC11(["Побачити донорів, що відгукнулися"])
+        UC12(["Закрити запит: знайдено / скасовано"])
     end
 
-    subgraph Spring["Весна (поза модулем 2)"]
-        UC8(("Push-сповіщення<br/>про новий запит"))
-        UC9(("Запит від імені<br/>центру крові"))
+    subgraph Spring["Весна"]
+        direction TB
+        UC8(["Push-сповіщення про новий запит"])
+        UC9(["Запит від імені центру крові"])
     end
+
+    Seeker(["👤 Людина, якій<br/>потрібна кров"])
+    Center(["🏥 Центр крові"])
 
     Guest --> UC1
-    Guest --> UC2
     Guest --> UC5
     Donor --> UC3
     Donor --> UC4
-    Donor --> UC5
     Donor --> UC6
-    Donor --> UC7
+    Donor --> UC5
     Donor --> UC13
     Donor --> UC14
-    Seeker --> UC10
-    Seeker --> UC11
-    Seeker --> UC12
     Donor -.-> UC8
-    Center -.-> UC9
+    UC10 --- Seeker
+    UC11 --- Seeker
+    UC12 --- Seeker
+    UC9 -.- Center
     UC4 -. "«include»" .-> UC6
     UC14 -. "«include»" .-> UC4
 ```
 
-Гість може зареєструватися, увійти й переглянути центри (ендпоінт `/api/centers` публічний). Решта дій потребує входу. Калькулятор (UC4) рахує дату за історією донацій (UC6). Донор і людина, якій потрібна кров, — це ролі одного облікового запису: родич пацієнта може сам бути донором. Відгукнутися (UC14) можна лише за сумісної групи й після мінімального інтервалу, тому UC14 включає перевірку UC4.
+Гість може зареєструватися, увійти й переглянути центри (`/api/centers` — публічний ендпоінт); решта дій потребує входу. Донор і людина, якій потрібна кров, — ролі одного облікового запису: родич пацієнта може сам бути донором. Калькулятор (UC4) рахує дату за історією донацій (UC6). Відгукнутися (UC14) можна лише за сумісної групи й після мінімального інтервалу, тому UC14 включає UC4. Пунктиром — функції, заплановані на весну.
 
-## 2. Діаграма класів
+## 2. Діаграма класів: модель даних
 
 ```mermaid
 classDiagram
@@ -70,7 +69,6 @@ classDiagram
         +string? City
         +double? Latitude
         +double? Longitude
-        +DateTime CreatedAt
     }
     class Donation {
         +int Id
@@ -90,38 +88,6 @@ classDiagram
         +string? Phone
         +string? WorkingHours
     }
-    class DonationIntervalCalculator {
-        +Calculate(sex, history, next, today) EligibilityResult
-    }
-    class DonationRules {
-        +MinIntervalDays(previous, next, sex) int
-        +MaxWholeBloodPerYear(sex) int
-    }
-    class EligibilityResult {
-        <<record>>
-        +bool CanDonateNow
-        +DateOnly NextDate
-        +int DaysLeft
-        +string Reason
-    }
-    class GeoDistance {
-        <<static>>
-        +Kilometers(lat1, lon1, lat2, lon2) double
-    }
-    class ProfileValidator {
-        <<static>>
-        +Validate(...) IReadOnlyList~string~
-        +AgeOn(birthDate, today) int
-        +FormatBloodType(group, rh) string
-    }
-
-    class IAuthService { <<interface>> +RegisterAsync() +LoginAsync() }
-    class IProfileService { <<interface>> +GetAsync() +UpdateAsync() }
-    class IEligibilityService { <<interface>> +GetAsync() }
-    class ICenterService { <<interface>> +GetAsync() }
-    class IDonationService { <<interface>> +ListAsync() +AddAsync() +DeleteAsync() }
-    class ITokenService { <<interface>> +CreateToken(donor) }
-    class IBloodRequestService { <<interface>> +ListOpenAsync() +ListMineAsync() +CreateAsync() +RespondAsync() +CancelResponseAsync() +UpdateStatusAsync() }
     class BloodRequest {
         +int Id
         +int AuthorId
@@ -143,47 +109,91 @@ classDiagram
         +int DonorId
         +DateTime CreatedAt
     }
-    class BloodCompatibility {
-        <<static>>
-        +CanDonate(donorGroup, donorRh, recipientGroup, recipientRh, type) bool
-        +CompatibleDonors(recipientGroup, recipientRh, type) list
-    }
-    class BloodLinkDbContext {
-        +DbSet~Donor~ Donors
-        +DbSet~Donation~ Donations
-        +DbSet~BloodCenter~ BloodCenters
-        +DbSet~BloodRequest~ BloodRequests
-        +DbSet~RequestResponse~ RequestResponses
-    }
 
     Donor "1" --> "0..*" Donation : має
     Donation "0..*" --> "0..1" BloodCenter : у центрі
-    DonationIntervalCalculator --> DonationRules
-    DonationIntervalCalculator ..> EligibilityResult : створює
-    DonationIntervalCalculator ..> Donation : читає
-
-    IAuthService ..> ITokenService
-    IAuthService ..> BloodLinkDbContext
-    IProfileService ..> ProfileValidator
-    IProfileService ..> BloodLinkDbContext
-    IEligibilityService ..> DonationIntervalCalculator
-    IEligibilityService ..> BloodLinkDbContext
-    ICenterService ..> GeoDistance
-    ICenterService ..> BloodLinkDbContext
-    IDonationService ..> BloodLinkDbContext
     Donor "1" --> "0..*" BloodRequest : створює
     BloodRequest "0..*" --> "1" BloodCenter : здавати тут
-    BloodRequest "1" --> "0..*" RequestResponse : відгуки
+    BloodRequest "1" *-- "0..*" RequestResponse : відгуки
     Donor "1" --> "0..*" RequestResponse : відгукується
+```
+
+Переліки: `BloodGroup {O, A, B, AB}`, `RhFactor {Positive, Negative}`, `Sex {Male, Female}`, `DonationType {WholeBlood, Plasma, Platelets}`, `RequestUrgency {Normal, Urgent, Critical}`, `RequestStatus {Open, Fulfilled, Cancelled}`.
+
+## 3. Діаграма класів: сервіси та бізнес-логіка
+
+```mermaid
+classDiagram
+    direction LR
+
+    class IAuthService {
+        <<interface>>
+        +RegisterAsync(request) AuthResponse
+        +LoginAsync(request) AuthResponse
+    }
+    class IProfileService {
+        <<interface>>
+        +GetAsync(donorId) ProfileDto
+        +UpdateAsync(donorId, request) ProfileDto
+    }
+    class IEligibilityService {
+        <<interface>>
+        +GetAsync(donorId, type) EligibilityDto
+    }
+    class ICenterService {
+        <<interface>>
+        +GetAsync(lat, lng, limit) List~CenterDto~
+    }
+    class IDonationService {
+        <<interface>>
+        +ListAsync(donorId) List~DonationDto~
+        +AddAsync(donorId, request) DonationDto
+        +DeleteAsync(donorId, id)
+    }
+    class IBloodRequestService {
+        <<interface>>
+        +ListOpenAsync(userId, lat, lng, radius, onlyCompatible)
+        +ListMineAsync(userId)
+        +CreateAsync(userId, request)
+        +RespondAsync(userId, requestId)
+        +UpdateStatusAsync(userId, requestId, status)
+    }
+    class ITokenService {
+        <<interface>>
+        +CreateToken(donor) string
+    }
+    class DonationIntervalCalculator {
+        +Calculate(sex, history, next, today) EligibilityResult
+    }
+    class DonationRules {
+        +MinIntervalDays(previous, next, sex) int
+        +MaxWholeBloodPerYear(sex) int
+    }
+    class BloodCompatibility {
+        <<static>>
+        +CanDonate(donor, recipient, type) bool
+    }
+    class GeoDistance {
+        <<static>>
+        +Kilometers(lat1, lon1, lat2, lon2) double
+    }
+    class ProfileValidator {
+        <<static>>
+        +Validate(...) List~string~
+    }
+    IAuthService ..> ITokenService
+    IProfileService ..> ProfileValidator
+    IEligibilityService ..> DonationIntervalCalculator
+    ICenterService ..> GeoDistance
     IBloodRequestService ..> BloodCompatibility
     IBloodRequestService ..> DonationIntervalCalculator
     IBloodRequestService ..> GeoDistance
-    IBloodRequestService ..> BloodLinkDbContext
+    DonationIntervalCalculator --> DonationRules
 ```
 
-Переліки: `BloodGroup {O, A, B, AB}`, `RhFactor {Positive, Negative}`, `Sex {Male, Female}`, `DonationType {WholeBlood, Plasma, Platelets}`, `RequestUrgency {Normal, Urgent, Critical}`, `RequestStatus {Open, Fulfilled, Cancelled}`. Кожен інтерфейс сервісу має одну реалізацію з такою ж назвою без `I` (`AuthService`, `ProfileService` тощо); контролери залежать лише від інтерфейсів.
+Кожен інтерфейс має одну реалізацію з такою ж назвою без `I` (`AuthService`, `BloodRequestService` тощо); контролери залежать лише від інтерфейсів. Усі сервіси читають і записують дані через `BloodLinkDbContext` (EF Core) — ці зв'язки на діаграмі не показані, щоб не перевантажувати її. Бізнес-правила (`DonationIntervalCalculator`, `BloodCompatibility`, `GeoDistance`, `ProfileValidator`) лежать у проєкті `BloodLink.Domain` і не залежать від веба чи БД.
 
-## 3. Діаграма послідовності: «коли мені можна здавати?»
+## 4. Діаграма послідовності: «коли мені можна здавати?»
 
 ```mermaid
 sequenceDiagram
@@ -213,7 +223,7 @@ sequenceDiagram
     end
 ```
 
-## 4. Діаграма послідовності: реєстрація і вхід
+## 5. Діаграма послідовності: реєстрація і вхід
 
 ```mermaid
 sequenceDiagram
@@ -243,7 +253,7 @@ sequenceDiagram
     end
 ```
 
-## 5. Діаграма послідовності: запит на кров і відгук донора
+## 6. Діаграма послідовності: запит на кров і відгук донора
 
 ```mermaid
 sequenceDiagram
