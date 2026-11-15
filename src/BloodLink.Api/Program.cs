@@ -58,6 +58,7 @@ builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<IEligibilityService, EligibilityService>();
 builder.Services.AddScoped<ICenterService, CenterService>();
 builder.Services.AddScoped<IDonationService, DonationService>();
+builder.Services.AddScoped<IBloodRequestService, BloodRequestService>();
 builder.Services.AddExceptionHandler<ServiceExceptionHandler>();
 builder.Services.AddProblemDetails();
 

@@ -16,6 +16,7 @@
     <main>
       <section id="screen-auth" class="screen">
         <h1>Кров приходить раніше, ніж закінчиться</h1>
+        <p class="muted">Донорам — коли й куди прийти. Тим, кому потрібна кров, — сумісні донори поруч.</p>
         <div class="tabs">
           <button type="button" class="tab active" data-mode="login">Вхід</button>
           <button type="button" class="tab" data-mode="register">Реєстрація</button>
@@ -108,11 +109,76 @@
         </form>
         <ul class="list" id="history-list"></ul>
       </section>
+      <section id="screen-requests" class="screen hidden">
+        <div class="section-head">
+          <h2>Потрібна кров</h2>
+          <button type="button" class="link" id="toggle-request-form">+ Створити запит</button>
+        </div>
+        <form id="request-form" class="card hidden" novalidate>
+          <p class="muted small">Шукаєте донорів для себе чи близької людини? Донори з сумісною групою поруч побачать запит і відгукнуться.</p>
+          <div class="row">
+            <label>Група крові
+              <select name="bloodGroup" required>
+                <option value="O">0 (I)</option>
+                <option value="A">A (II)</option>
+                <option value="B">B (III)</option>
+                <option value="AB">AB (IV)</option>
+              </select>
+            </label>
+            <label>Резус
+              <select name="rhFactor" required>
+                <option value="Positive">Rh+</option>
+                <option value="Negative">Rh−</option>
+              </select>
+            </label>
+          </div>
+          <div class="row">
+            <label>Що потрібно
+              <select name="type">
+                <option value="WholeBlood">Цільна кров</option>
+                <option value="Plasma">Плазма</option>
+                <option value="Platelets">Тромбоцити</option>
+              </select>
+            </label>
+            <label>Донорів
+              <input name="unitsNeeded" type="number" min="1" max="20" value="2">
+            </label>
+          </div>
+          <label>Терміновість
+            <select name="urgency">
+              <option value="Normal">Звичайна</option>
+              <option value="Urgent">Терміново</option>
+              <option value="Critical">Критично</option>
+            </select>
+          </label>
+          <label>Де здавати (центр крові) <select name="bloodCenterId" id="request-center" required></select></label>
+          <label>Лікарня / відділення <input name="hospital" maxlength="200"></label>
+          <div class="row">
+            <label>Пацієнт (ініціали) <input name="patientName" maxlength="100"></label>
+            <label>Потрібно до <input name="neededBy" type="date"></label>
+          </div>
+          <label>Телефон для зв'язку <input name="contactPhone" type="tel" placeholder="+380..." required></label>
+          <label>Коментар <input name="description" maxlength="500"></label>
+          <p class="muted small">Телефон побачать лише донори, які натиснуть «Я допоможу».</p>
+          <button type="submit" class="primary">Опублікувати запит</button>
+          <p class="error" id="request-error" role="alert"></p>
+        </form>
+
+        <div id="my-requests-block" class="hidden">
+          <h3>Мої запити</h3>
+          <ul class="list" id="my-requests"></ul>
+        </div>
+
+        <h3>Запити поруч</h3>
+        <label class="check"><input type="checkbox" id="only-compatible"> Лише ті, де я можу допомогти</label>
+        <ul class="list" id="requests-list"></ul>
+      </section>
     </main>
 
     <nav class="tabbar hidden" id="tabbar">
       <a href="#profile" data-screen="profile">Профіль</a>
       <a href="#centers" data-screen="centers">Центри</a>
+      <a href="#requests" data-screen="requests">Запити</a>
       <a href="#history" data-screen="history">Історія</a>
     </nav>
   </div>

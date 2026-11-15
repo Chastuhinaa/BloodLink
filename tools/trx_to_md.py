@@ -17,7 +17,9 @@ OWNERS = {
     "DonationServiceTests": ("B-07", "Дорошенко Дарія"),
     "ProfileTests": ("B-04", "Андрущенко Альона"),
     "AuthTests": ("B-03", "Частухіна Юлія"),
-    "ApiTests": ("B-10", "Частухіна Юлія"),
+    "ApiTests": ("B-10, B-28", "Частухіна Юлія"),
+    "BloodCompatibilityTests": ("B-28", "Частухіна Юлія"),
+    "BloodRequestServiceTests": ("B-28", "Частухіна Юлія"),
 }
 
 OUTCOME = {"Passed": "✅ пройшов", "Failed": "❌ не пройшов", "NotExecuted": "⏭ пропущено"}

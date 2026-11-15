@@ -17,8 +17,15 @@
 | GET | `/api/donations` | JWT | Історія донацій, від нових | 200, 401 |
 | POST | `/api/donations` | JWT | Додати донацію | 201, 400, 401 |
 | DELETE | `/api/donations/{id}` | JWT | Видалити свій запис | 204, 401, 404 |
+| GET | `/api/requests?lat=&lng=&radiusKm=&onlyCompatible=` | JWT | Відкриті запити на кров: спершу критичні, потім найближчі | 200, 400, 401 |
+| GET | `/api/requests/mine` | JWT | Мої запити і донори, що відгукнулися | 200, 401 |
+| GET | `/api/requests/{id}` | JWT | Один запит | 200, 401, 404 |
+| POST | `/api/requests` | JWT | Створити запит на кров для пацієнта | 201, 400, 401 |
+| POST | `/api/requests/{id}/responses` | JWT | «Я допоможу» — відгукнутися | 200, 400, 401, 404, 409 |
+| DELETE | `/api/requests/{id}/responses` | JWT | Скасувати свій відгук | 204, 401, 404 |
+| PATCH | `/api/requests/{id}/status` | JWT | Автор: `Fulfilled` або `Cancelled` | 200, 400, 401, 404 |
 
-Переліки передаються рядками: `sex` — `Male`/`Female`; `bloodGroup` — `O`/`A`/`B`/`AB`; `rhFactor` — `Positive`/`Negative`; `type` — `WholeBlood`/`Plasma`/`Platelets`. Дати — `yyyy-MM-dd`.
+Переліки передаються рядками: `sex` — `Male`/`Female`; `bloodGroup` — `O`/`A`/`B`/`AB`; `rhFactor` — `Positive`/`Negative`; `type` — `WholeBlood`/`Plasma`/`Platelets`; `urgency` — `Normal`/`Urgent`/`Critical`; `status` — `Open`/`Fulfilled`/`Cancelled`. Дати — `yyyy-MM-dd`.
 
 ## Приклади
 
@@ -84,3 +91,32 @@ GET /api/centers?lat=50.4501&lng=30.5234&limit=2
 | Річний ліміт цільної крові | 5 (чоловіки), 4 (жінки) за 365 днів |
 
 Значення зібрані в `DonationRules` і потребують звірки з чинним наказом МОЗ України перед пілотом.
+
+## Запити на кров
+
+Користувач, якому потрібна кров (для себе чи близької людини), створює запит: група, резус, компонент, скільки донорів потрібно, центр крові, де здавати, терміновість, телефон.
+
+```http
+POST /api/requests
+Authorization: Bearer eyJhbGciOi...
+Content-Type: application/json
+
+{ "bloodGroup": "A", "rhFactor": "Negative", "unitsNeeded": 3, "bloodCenterId": 1,
+  "urgency": "Critical", "contactPhone": "+380671234567", "hospital": "Лікарня №1", "neededBy": "2026-11-30" }
+```
+
+Донори бачать відкриті запити. Для кожного API рахує `canHelp`: група сумісна і після останньої донації минув інтервал. Якщо допомогти не вийде, `cannotHelpReason` пояснює чому.
+
+| Хто дивиться | `contactPhone` | `responders` |
+| --- | --- | --- |
+| Автор запиту | так | список донорів (ім'я, група, email) |
+| Донор, що відгукнувся | так | — |
+| Інші | `null` | — |
+
+Правила сумісності (спрощено, остаточно вирішує центр крові):
+
+| Компонент | Хто може дати |
+| --- | --- |
+| Цільна кров | Антигени AB0 донора є в реципієнта (0 — усім, AB — лише AB); Rh− — усім, Rh+ — лише Rh+. |
+| Плазма, тромбоцити | Навпаки за AB0: AB — усім, 0 — лише 0; резус не враховується. |
+

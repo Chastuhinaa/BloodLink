@@ -47,6 +47,7 @@ function show(screen) {
   if (screen === "profile") loadProfile();
   if (screen === "centers") loadCenters();
   if (screen === "history") loadHistory();
+  if (screen === "requests") loadRequests();
 }
 
 window.addEventListener("hashchange", () => show(location.hash.slice(1)));
@@ -220,6 +221,137 @@ $("#donation-form").addEventListener("submit", async (e) => {
     loadHistory();
   } catch (err) {
     $("#donation-error").textContent = err.message;
+  }
+});
+
+const URGENCY_NAMES = { Normal: "Звичайна", Urgent: "Терміново", Critical: "Критично" };
+const STATUS_NAMES = { Open: "Відкритий", Fulfilled: "Кров знайдено", Cancelled: "Скасовано" };
+
+async function fillCenterSelect(select) {
+  if (select.options.length > 0) return;
+  const centers = await api("/api/centers");
+  for (const c of centers) select.add(new Option(c.name, c.id));
+}
+
+function requestMeta(r) {
+  const parts = [
+    `${TYPE_NAMES[r.type] || r.type} · потрібно донорів: ${r.unitsNeeded}`,
+    `${escapeHtml(r.bloodCenterName)}${r.distanceKm != null ? ` · ${r.distanceKm.toFixed(1)} км` : ""}`,
+  ];
+  if (r.hospital || r.patientName) {
+    parts.push(`Для: ${[r.hospital, r.patientName].filter(Boolean).map(escapeHtml).join(", ")}`);
+  }
+  if (r.neededBy) parts.push(`Потрібно до ${formatDate(r.neededBy)}`);
+  if (r.description) parts.push(escapeHtml(r.description));
+  return parts.map((p) => `<div class="sub">${p}</div>`).join("");
+}
+
+function requestBadges(r) {
+  const urgency = r.urgency !== "Normal" ? `<span class="badge ${r.urgency}">${URGENCY_NAMES[r.urgency]}</span>` : "";
+  const status = r.status !== "Open" ? `<span class="badge closed">${STATUS_NAMES[r.status]}</span>` : "";
+  return `<div class="top"><span class="badge blood">${escapeHtml(r.bloodType)}</span>${urgency}${status}
+    <span class="sub">відгукнулося: ${r.responsesCount}</span></div>`;
+}
+
+function otherRequestHtml(r) {
+  let action;
+  if (r.iResponded) {
+    action = `<div class="actions"><span class="help">Ви відгукнулися. Зателефонуйте:</span>
+      <a class="tel" href="tel:${escapeHtml(r.contactPhone)}">${escapeHtml(r.contactPhone)}</a>
+      <button type="button" class="link del" data-cancel="${r.id}">Скасувати відгук</button></div>`;
+  } else if (r.canHelp) {
+    action = `<div class="actions"><span class="help">Ваша група підходить</span>
+      <button type="button" class="small-btn" data-respond="${r.id}">Я допоможу</button></div>`;
+  } else {
+    action = `<div class="nohelp">${escapeHtml(r.cannotHelpReason || "")}</div>`;
+  }
+  return `<li class="req">${requestBadges(r)}${requestMeta(r)}${action}</li>`;
+}
+
+function myRequestHtml(r) {
+  const responders = r.responders.length
+    ? `<div class="sub">Готові допомогти:</div><div class="responders">${r.responders.map((d) =>
+        `<div>${escapeHtml(d.fullName)} · ${escapeHtml(d.bloodType)} · ${escapeHtml(d.email)}</div>`).join("")}</div>`
+    : `<div class="nohelp">Поки ніхто не відгукнувся.</div>`;
+  const actions = r.status === "Open"
+    ? `<div class="actions"><button type="button" class="link" data-status="Fulfilled" data-id="${r.id}">Кров знайдено</button>
+        <button type="button" class="link del" data-status="Cancelled" data-id="${r.id}">Скасувати запит</button></div>`
+    : "";
+  return `<li class="req">${requestBadges(r)}${requestMeta(r)}${responders}${actions}</li>`;
+}
+
+async function loadRequests() {
+  const list = $("#requests-list");
+  try {
+    await fillCenterSelect($("#request-center"));
+    const only = $("#only-compatible").checked;
+    const [items, mine] = await Promise.all([
+      api(`/api/requests${only ? "?onlyCompatible=true" : ""}`),
+      api("/api/requests/mine"),
+    ]);
+
+    const others = items.filter((r) => !r.isMine);
+    list.innerHTML = others.length === 0
+      ? `<li class="muted">Зараз немає відкритих запитів${only ? ", де ви можете допомогти" : ""}.</li>`
+      : others.map(otherRequestHtml).join("");
+
+    $("#my-requests-block").classList.toggle("hidden", mine.length === 0);
+    $("#my-requests").innerHTML = mine.map(myRequestHtml).join("");
+  } catch (err) {
+    list.innerHTML = `<li class="error">${escapeHtml(err.message)}</li>`;
+  }
+}
+
+$("#only-compatible").addEventListener("change", loadRequests);
+$("#toggle-request-form").addEventListener("click", () => $("#request-form").classList.toggle("hidden"));
+
+$("#request-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const f = new FormData(e.target);
+  const val = (k) => (f.get(k) === "" ? null : f.get(k));
+  $("#request-error").textContent = "";
+  try {
+    await api("/api/requests", {
+      method: "POST",
+      body: {
+        bloodGroup: f.get("bloodGroup"),
+        rhFactor: f.get("rhFactor"),
+        type: f.get("type"),
+        unitsNeeded: Number(f.get("unitsNeeded") || 1),
+        urgency: f.get("urgency"),
+        bloodCenterId: Number(f.get("bloodCenterId")),
+        hospital: val("hospital"),
+        patientName: val("patientName"),
+        neededBy: val("neededBy"),
+        contactPhone: f.get("contactPhone"),
+        description: val("description"),
+      },
+    });
+    e.target.reset();
+    e.target.classList.add("hidden");
+    loadRequests();
+  } catch (err) {
+    $("#request-error").textContent = err.message;
+  }
+});
+
+$("#screen-requests").addEventListener("click", async (e) => {
+  const t = e.target;
+  try {
+    if (t.dataset.respond) {
+      await api(`/api/requests/${t.dataset.respond}/responses`, { method: "POST" });
+    } else if (t.dataset.cancel) {
+      await api(`/api/requests/${t.dataset.cancel}/responses`, { method: "DELETE" });
+    } else if (t.dataset.status) {
+      const question = t.dataset.status === "Fulfilled" ? "Позначити, що кров знайдено?" : "Скасувати запит?";
+      if (!confirm(question)) return;
+      await api(`/api/requests/${t.dataset.id}/status`, { method: "PATCH", body: { status: t.dataset.status } });
+    } else {
+      return;
+    }
+    loadRequests();
+  } catch (err) {
+    alert(err.message);
   }
 });
 

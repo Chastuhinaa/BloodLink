@@ -187,7 +187,7 @@ public class ApiTests : IClassFixture<BloodLinkApiFactory>
         var doc = await _factory.CreateClient().GetFromJsonAsync<JsonElement>("/swagger/v1/swagger.json");
         var paths = doc.GetProperty("paths");
 
-        foreach (var p in new[] { "/api/auth/register", "/api/auth/login", "/api/profile", "/api/eligibility", "/api/centers", "/api/donations", "/api/donations/{id}" })
+        foreach (var p in new[] { "/api/auth/register", "/api/auth/login", "/api/profile", "/api/eligibility", "/api/centers", "/api/donations", "/api/donations/{id}", "/api/requests", "/api/requests/mine", "/api/requests/{id}/responses", "/api/requests/{id}/status" })
         {
             Assert.True(paths.TryGetProperty(p, out _), $"Немає {p} у swagger.json");
         }
@@ -196,5 +196,87 @@ public class ApiTests : IClassFixture<BloodLinkApiFactory>
 
         Assert.True(paths.GetProperty("/api/profile").GetProperty("get").TryGetProperty("security", out _));
         Assert.False(paths.GetProperty("/api/centers").GetProperty("get").TryGetProperty("security", out _));
+    }
+
+    private async Task<HttpClient> DonorWithProfileAsync(string group, string rh, string sex = "Male")
+    {
+        var client = await AuthorizedClientAsync();
+        var resp = await client.PutAsJsonAsync("/api/profile", new
+        {
+            fullName = $"Донор {group}{rh}",
+            sex,
+            bloodGroup = group,
+            rhFactor = rh,
+            latitude = 50.4501,
+            longitude = 30.5234,
+        });
+        resp.EnsureSuccessStatusCode();
+        return client;
+    }
+
+    [Fact]
+    public async Task BloodRequest_Create_Respond_SeeContact_Fulfill()
+    {
+        var patientRelative = await AuthorizedClientAsync();
+        var created = await patientRelative.PostAsJsonAsync("/api/requests", new
+        {
+            bloodGroup = "A",
+            rhFactor = "Negative",
+            unitsNeeded = 3,
+            bloodCenterId = 1,
+            urgency = "Critical",
+            contactPhone = "+380671234567",
+            hospital = "Лікарня №1",
+        });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var id = (await created.Content.ReadFromJsonAsync<JsonElement>(Json)).GetProperty("id").GetInt32();
+
+        var compatible = await DonorWithProfileAsync("O", "Negative");
+        var incompatible = await DonorWithProfileAsync("B", "Positive");
+
+        var list = await compatible.GetFromJsonAsync<JsonElement>("/api/requests?onlyCompatible=true", Json);
+        var mine = list.EnumerateArray().Single(r => r.GetProperty("id").GetInt32() == id);
+        Assert.True(mine.GetProperty("canHelp").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, mine.GetProperty("contactPhone").ValueKind);
+
+        var bad = await incompatible.PostAsync($"/api/requests/{id}/responses", null);
+        Assert.Equal(HttpStatusCode.BadRequest, bad.StatusCode);
+
+        var ok = await compatible.PostAsync($"/api/requests/{id}/responses", null);
+        Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
+        var afterRespond = await ok.Content.ReadFromJsonAsync<JsonElement>(Json);
+        Assert.Equal("+380671234567", afterRespond.GetProperty("contactPhone").GetString());
+
+        var authorView = await patientRelative.GetFromJsonAsync<JsonElement>("/api/requests/mine", Json);
+        Assert.Equal(1, authorView[0].GetProperty("responders").GetArrayLength());
+
+        var byStranger = await compatible.PatchAsJsonAsync($"/api/requests/{id}/status", new { status = "Fulfilled" });
+        Assert.Equal(HttpStatusCode.NotFound, byStranger.StatusCode);
+
+        var fulfil = await patientRelative.PatchAsJsonAsync($"/api/requests/{id}/status", new { status = "Fulfilled" });
+        Assert.Equal(HttpStatusCode.OK, fulfil.StatusCode);
+        var open = await compatible.GetFromJsonAsync<JsonElement>("/api/requests", Json);
+        Assert.DoesNotContain(open.EnumerateArray(), r => r.GetProperty("id").GetInt32() == id);
+    }
+
+    [Fact]
+    public async Task BloodRequest_InvalidPhone_Returns400()
+    {
+        var client = await AuthorizedClientAsync();
+
+        var resp = await client.PostAsJsonAsync("/api/requests", new
+        {
+            bloodGroup = "O", rhFactor = "Positive", bloodCenterId = 1, contactPhone = "abc",
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task BloodRequests_WithoutToken_Return401()
+    {
+        var resp = await _factory.CreateClient().GetAsync("/api/requests");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
     }
 }
