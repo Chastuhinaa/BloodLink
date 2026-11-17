@@ -114,6 +114,456 @@
         }
       }
     },
+    "/api/requests": {
+      "get": {
+        "tags": [
+          "BloodRequests"
+        ],
+        "summary": "Відкриті запити: спершу найтерміновіші, потім найближчі.",
+        "parameters": [
+          {
+            "name": "lat",
+            "in": "query",
+            "description": "Широта. Без неї береться точка з профілю.",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "lng",
+            "in": "query",
+            "description": "Довгота.",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "radiusKm",
+            "in": "query",
+            "description": "Показати лише запити в цьому радіусі.",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "onlyCompatible",
+            "in": "query",
+            "description": "Лише ті, де поточний донор може допомогти.",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BloodRequestDto"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "BloodRequests"
+        ],
+        "summary": "Створити запит на кров для пацієнта.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBloodRequestRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBloodRequestRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBloodRequestRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Запит створено.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BloodRequestDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некоректний телефон, невідомий центр, дата в минулому тощо.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/requests/mine": {
+      "get": {
+        "tags": [
+          "BloodRequests"
+        ],
+        "summary": "Мої запити разом зі списком донорів, які відгукнулися.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BloodRequestDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/requests/{id}": {
+      "get": {
+        "tags": [
+          "BloodRequests"
+        ],
+        "summary": "Один запит.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BloodRequestDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/requests/{id}/responses": {
+      "post": {
+        "tags": [
+          "BloodRequests"
+        ],
+        "summary": "«Я допоможу»: відгукнутися на запит. Після цього донору видно телефон автора.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Відгук збережено.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BloodRequestDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Несумісна група, ще не минув інтервал, власний або закритий запит.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Уже відгукнулися.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "BloodRequests"
+        ],
+        "summary": "Скасувати свій відгук.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/requests/{id}/status": {
+      "patch": {
+        "tags": [
+          "BloodRequests"
+        ],
+        "summary": "Позначити свій запит як виконаний або скасований.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRequestStatusRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRequestStatusRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRequestStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BloodRequestDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Запиту немає або він не ваш.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
     "/api/centers": {
       "get": {
         "tags": [
@@ -502,6 +952,110 @@
         ],
         "type": "string"
       },
+      "BloodRequestDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "bloodGroup": {
+            "$ref": "#/components/schemas/BloodGroup"
+          },
+          "rhFactor": {
+            "$ref": "#/components/schemas/RhFactor"
+          },
+          "bloodType": {
+            "type": "string",
+            "nullable": true
+          },
+          "type": {
+            "$ref": "#/components/schemas/DonationType"
+          },
+          "unitsNeeded": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "urgency": {
+            "$ref": "#/components/schemas/RequestUrgency"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RequestStatus"
+          },
+          "bloodCenterId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "bloodCenterName": {
+            "type": "string",
+            "nullable": true
+          },
+          "bloodCenterAddress": {
+            "type": "string",
+            "nullable": true
+          },
+          "city": {
+            "type": "string",
+            "nullable": true
+          },
+          "hospital": {
+            "type": "string",
+            "nullable": true
+          },
+          "patientName": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "neededBy": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "distanceKm": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "responsesCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "isMine": {
+            "type": "boolean"
+          },
+          "iResponded": {
+            "type": "boolean"
+          },
+          "canHelp": {
+            "type": "boolean"
+          },
+          "cannotHelpReason": {
+            "type": "string",
+            "nullable": true
+          },
+          "contactPhone": {
+            "type": "string",
+            "nullable": true
+          },
+          "responders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResponderDto"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "Запит на кров. CanHelp — чи може поточний користувач допомогти (сумісна група і минув інтервал);\r\nContactPhone видно лише автору і донорам, які відгукнулися; Responders — лише автору."
+      },
       "CenterDto": {
         "type": "object",
         "properties": {
@@ -545,6 +1099,55 @@
         },
         "additionalProperties": false,
         "description": "Центр крові з відстанню до донора."
+      },
+      "CreateBloodRequestRequest": {
+        "type": "object",
+        "properties": {
+          "bloodGroup": {
+            "$ref": "#/components/schemas/BloodGroup"
+          },
+          "rhFactor": {
+            "$ref": "#/components/schemas/RhFactor"
+          },
+          "type": {
+            "$ref": "#/components/schemas/DonationType"
+          },
+          "unitsNeeded": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "bloodCenterId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "urgency": {
+            "$ref": "#/components/schemas/RequestUrgency"
+          },
+          "contactPhone": {
+            "type": "string",
+            "nullable": true
+          },
+          "patientName": {
+            "type": "string",
+            "nullable": true
+          },
+          "hospital": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "neededBy": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "Новий запит на кров для пацієнта."
       },
       "CreateDonationRequest": {
         "type": "object",
@@ -745,6 +1348,49 @@
         "additionalProperties": false,
         "description": "Дані для реєстрації донора."
       },
+      "RequestStatus": {
+        "enum": [
+          "Open",
+          "Fulfilled",
+          "Cancelled"
+        ],
+        "type": "string"
+      },
+      "RequestUrgency": {
+        "enum": [
+          "Normal",
+          "Urgent",
+          "Critical"
+        ],
+        "type": "string"
+      },
+      "ResponderDto": {
+        "type": "object",
+        "properties": {
+          "donorId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "fullName": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "bloodType": {
+            "type": "string",
+            "nullable": true
+          },
+          "respondedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Донор, який відгукнувся на запит (бачить лише автор запиту)."
+      },
       "RhFactor": {
         "enum": [
           "Positive",
@@ -797,6 +1443,16 @@
         },
         "additionalProperties": false,
         "description": "Оновлення профілю донора."
+      },
+      "UpdateRequestStatusRequest": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/RequestStatus"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Зміна статусу запиту автором."
       }
     },
     "securitySchemes": {

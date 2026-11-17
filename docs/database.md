@@ -1,6 +1,6 @@
 # Схема бази даних (B-01)
 
-**Коротко:** три таблиці — донори, центри крові й донації. Донор має багато донацій; донація може посилатися на центр. Схему описує `BloodLinkDbContext` (EF Core), тож вона однакова для PostgreSQL і SQLite.
+**Коротко:** п'ять таблиць — користувачі (донори), центри крові, донації, запити на кров і відгуки донорів на запити. Один обліковий запис може і здавати кров, і шукати її для близької людини. Схему описує `BloodLinkDbContext` (EF Core), тож вона однакова для PostgreSQL і SQLite.
 
 ## ER-діаграма
 
@@ -8,6 +8,10 @@
 erDiagram
     donors ||--o{ donations : "має"
     blood_centers |o--o{ donations : "у центрі"
+    donors ||--o{ blood_requests : "створює"
+    blood_centers ||--o{ blood_requests : "здавати тут"
+    blood_requests ||--o{ request_responses : "має відгуки"
+    donors ||--o{ request_responses : "відгукується"
 
     donors {
         int Id PK
@@ -43,6 +47,31 @@ erDiagram
         varchar(20) Type "WholeBlood | Plasma | Platelets"
         varchar(500) Notes "NULL"
     }
+
+    blood_requests {
+        int Id PK
+        int AuthorId FK "ON DELETE CASCADE"
+        int BloodCenterId FK "ON DELETE RESTRICT"
+        varchar(3) BloodGroup "O | A | B | AB"
+        varchar(10) RhFactor "Positive | Negative"
+        varchar(20) Type "WholeBlood | Plasma | Platelets"
+        int UnitsNeeded "1..20"
+        varchar(10) Urgency "Normal | Urgent | Critical"
+        varchar(10) Status "Open | Fulfilled | Cancelled"
+        varchar(20) ContactPhone
+        varchar(100) PatientName "NULL, ініціали"
+        varchar(200) Hospital "NULL"
+        varchar(500) Description "NULL"
+        date NeededBy "NULL"
+        timestamp CreatedAt
+    }
+
+    request_responses {
+        int Id PK
+        int RequestId FK "ON DELETE CASCADE"
+        int DonorId FK "ON DELETE CASCADE"
+        timestamp CreatedAt
+    }
 ```
 
 ## Обмеження й індекси
@@ -53,6 +82,9 @@ erDiagram
 | `donations` | `FK DonorId → donors.Id ON DELETE CASCADE` | Видалення донора видаляє і його історію. |
 | `donations` | `FK BloodCenterId → blood_centers.Id ON DELETE SET NULL` | Закриття центру не знищує історію донора. |
 | `donations` | `INDEX (DonorId, Date)` | Швидка вибірка історії донора і останньої донації для калькулятора. |
+| `blood_requests` | `FK BloodCenterId → blood_centers.Id ON DELETE RESTRICT` | Не можна видалити центр, поки на нього посилаються запити. |
+| `blood_requests` | `INDEX (Status, BloodGroup, RhFactor)` | Швидкий пошук відкритих запитів потрібної групи. |
+| `request_responses` | `UNIQUE (RequestId, DonorId)` | Донор відгукується на запит лише один раз. |
 
 Переліки зберігаються як рядки (`HasConversion<string>()`): у БД видно `"WholeBlood"`, а не `1`, і додавання нового значення не зсуває старі.
 
@@ -63,5 +95,5 @@ erDiagram
 ## Плани на весну
 
 - PostGIS-колонка `geography(Point)` замість пари `Latitude/Longitude` і просторовий індекс — для SOS у радіусі 15 км.
-- Таблиці `sos_requests` і `notifications`, обліковий запис центру крові.
+- Таблиця `notifications` для push-сповіщень про нові запити, обліковий запис центру крові.
 - Міграції EF Core (`dotnet ef migrations add`) замість `EnsureCreated`.
