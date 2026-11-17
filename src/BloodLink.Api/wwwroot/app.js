@@ -105,9 +105,12 @@ async function loadEligibility() {
   const box = $("#eligibility");
   const e = await api("/api/eligibility?type=WholeBlood");
   box.classList.toggle("wait", !e.canDonateNow);
+  const interval = Number((e.reason || "").match(/(\d+)\s*дн/)?.[1]) || 90;
+  const progress = e.canDonateNow ? 100 : Math.max(5, Math.round(100 * (1 - e.daysLeft / interval)));
+  box.style.setProperty("--progress", `${progress}%`);
   box.innerHTML = e.canDonateNow
-    ? `<p class="big">Можна здавати вже сьогодні</p><p class="muted">${escapeHtml(e.reason)}</p>`
-    : `<p class="big">Через ${e.daysLeft} дн. — з ${formatDate(e.nextDate)}</p><p class="muted">${escapeHtml(e.reason)}</p>`;
+    ? `<div><p class="big">Можна здавати вже сьогодні</p><p class="muted">${escapeHtml(e.reason)}</p></div>`
+    : `<div><p class="big">Через ${e.daysLeft} дн. — з ${formatDate(e.nextDate)}</p><p class="muted">${escapeHtml(e.reason)}</p></div>`;
 }
 
 $("#profile-form").addEventListener("submit", async (e) => {
