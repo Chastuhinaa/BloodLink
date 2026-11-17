@@ -1,7 +1,9 @@
+using System.Reflection;
 using System.Text;
 using System.Text.Json.Serialization;
 using BloodLink.Api.Data;
 using BloodLink.Api.Services;
+using BloodLink.Api.Swagger;
 using BloodLink.Domain;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -70,7 +72,27 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "BloodLink API",
         Version = "v1",
+        Description = "REST API застосунку BloodLink: реєстрація донора, профіль, калькулятор наступної здачі, " +
+                      "центри крові за відстанню та історія донацій.",
     });
+
+    var bearer = new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Вставте токен з /api/auth/login (без слова Bearer).",
+    };
+    c.AddSecurityDefinition("Bearer", bearer);
+    c.OperationFilter<AuthorizeOperationFilter>();
+
+    var xml = Path.Combine(AppContext.BaseDirectory, $"{Assembly.GetExecutingAssembly().GetName().Name}.xml");
+    if (File.Exists(xml))
+    {
+        c.IncludeXmlComments(xml);
+    }
 });
 
 var app = builder.Build();
