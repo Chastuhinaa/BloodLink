@@ -51,6 +51,7 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IPasswordHasher<Donor>, PasswordHasher<Donor>>();
 builder.Services.AddSingleton<ITokenService, JwtTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddExceptionHandler<ServiceExceptionHandler>();
 builder.Services.AddProblemDetails();
 
