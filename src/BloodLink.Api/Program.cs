@@ -48,10 +48,12 @@ builder.Services
 builder.Services.AddAuthorization();
 
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton(new DonationIntervalCalculator());
 builder.Services.AddSingleton<IPasswordHasher<Donor>, PasswordHasher<Donor>>();
 builder.Services.AddSingleton<ITokenService, JwtTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
+builder.Services.AddScoped<IEligibilityService, EligibilityService>();
 builder.Services.AddExceptionHandler<ServiceExceptionHandler>();
 builder.Services.AddProblemDetails();
 
