@@ -89,6 +89,8 @@ app.UseSwaggerUI(c =>
     c.DocumentTitle = "BloodLink API";
 });
 
+app.UseDefaultFiles();
+app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
