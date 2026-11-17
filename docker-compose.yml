@@ -1,0 +1,16 @@
+# Локальний PostgreSQL + PostGIS для BloodLink.
+# Запуск: docker compose up -d, потім API з профілем "postgres" (див. README).
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: bloodlink-db
+    environment:
+      POSTGRES_DB: bloodlink
+      POSTGRES_USER: bloodlink
+      POSTGRES_PASSWORD: bloodlink_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - bloodlink-data:/var/lib/postgresql/data
+volumes:
+  bloodlink-data:
