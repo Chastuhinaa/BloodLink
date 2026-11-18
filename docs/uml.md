@@ -69,6 +69,7 @@ classDiagram
         +string? City
         +double? Latitude
         +double? Longitude
+        +DateTime CreatedAt
     }
     class Donation {
         +int Id
@@ -101,7 +102,9 @@ classDiagram
         +string ContactPhone
         +string? PatientName
         +string? Hospital
+        +string? Description
         +DateOnly? NeededBy
+        +DateTime CreatedAt
     }
     class RequestResponse {
         +int Id
@@ -154,8 +157,10 @@ classDiagram
         <<interface>>
         +ListOpenAsync(userId, lat, lng, radius, onlyCompatible)
         +ListMineAsync(userId)
+        +GetAsync(userId, requestId)
         +CreateAsync(userId, request)
         +RespondAsync(userId, requestId)
+        +CancelResponseAsync(userId, requestId)
         +UpdateStatusAsync(userId, requestId, status)
     }
     class ITokenService {
